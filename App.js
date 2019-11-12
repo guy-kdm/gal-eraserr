@@ -2,10 +2,9 @@ import React, { Component } from 'react';
 import {
   StyleSheet,
   ScrollView,
-  Button,
   View,
   Text,
-  StatusBar,
+  TouchableOpacity
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -19,10 +18,18 @@ export default class App extends React.Component {
   render() {
     return (
       <>
-        <Button 
-          title="Download Existing Copy" 
-          onPress={() => this.downloadInfo()}
-        />
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => this.startAction("requestInfo")}
+        >
+          <Text>Create Info File</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => this.startAction("downloadInfo")}
+        >
+          <Text>Download Existing Info File</Text>
+        </TouchableOpacity>
         <WebView 
           ref={webview => this.webview = webview}
           source={{ uri: 'https://m.facebook.com/settings/'}}
@@ -52,10 +59,10 @@ export default class App extends React.Component {
     }
   }
 
-  downloadInfo() {
-    this.currentAction = "downloadInfo";
+  startAction(action) {
+    this.currentAction = action;
     this.webview.reload();
-    // this.webview.postMessage(JSON.stringify({action: "downloadInfo"}));
+    // this.webview.postMessage(JSON.stringify({action: action}));
   }
 }
 
@@ -88,7 +95,25 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
   }
 
   function simulation_dyiPage_requestInfo() {
+    // Deselect all sections
+    document.querySelector("[data-testid='dyi/sections/selectall']").click();
+    // Select posts only
+    document.querySelector("[data-testid='dyi/sections/posts']").click();
+    
+    // Commented out: Currently setting <select> elements is unsolved (code below won't work)
+    // even when the select.value is modified it seems react doesn't care.
 
+    // Set custom date
+    // const DAYS_BACK = 3;
+    // document.querySelector("select[name='date']").value = "custom";
+    // document.querySelectorAll("input[type='date']")[0].value = new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10);
+    // document.querySelectorAll("input[type='date']")[1].value = new Date(Date.now()).toISOString().slice(0,10);
+
+    // // Set media quality
+    // document.querySelector("[name='media_quality']").value = "VERY_LOW";
+
+    // Click create button
+    document.querySelector("button[data-testid='dyi/sections/create']").click();
   }
 
   function simulation_common() {
@@ -124,7 +149,17 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
       } else if (url.includes('bigzipfiles.facebook.com')) {
 
       } else {
-        // console.log("from: " + url);
+        result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
+      }
+      break;
+    case "requestInfo":
+      if (url.includes('.facebook.com/settings/')) {
+        result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
+      } else if (url.includes('.facebook.com/dyi/')) {
+        result += getFunctionBody(simulation_dyiPage_requestInfo)
+      } else if (url.includes('.facebook.com/login/')) {
+      
+      } else {
         result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
       }
       break;
@@ -132,3 +167,14 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
 
   return result;
 }
+
+const styles = StyleSheet.create({  
+  button: {
+    alignItems: 'center',
+    backgroundColor: 'greenyellow',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'black',
+    margin: 4,
+  },
+});
