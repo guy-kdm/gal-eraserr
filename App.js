@@ -99,18 +99,18 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
     document.querySelector("[data-testid='dyi/sections/selectall']").click();
     // Select posts only
     document.querySelector("[data-testid='dyi/sections/posts']").click();
-    
-    // Commented out: Currently setting <select> elements is unsolved (code below won't work)
-    // even when the select.value is modified it seems react doesn't care.
 
     // Set custom date
-    // const DAYS_BACK = 3;
-    // document.querySelector("select[name='date']").value = "custom";
-    // document.querySelectorAll("input[type='date']")[0].value = new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10);
-    // document.querySelectorAll("input[type='date']")[1].value = new Date(Date.now()).toISOString().slice(0,10);
+    const DAYS_BACK = 3;
+    document.querySelector("select[name='date']").value = "custom";
+    document.querySelector("select[name='date']").dispatchEvent(new Event('change', {bubbles: true}));
+    document.querySelectorAll("input[type='date']")[0].value = new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10);
+    document.querySelectorAll("input[type='date']")[1].value = new Date(Date.now()).toISOString().slice(0,10);
 
     // // Set media quality
-    // document.querySelector("[name='media_quality']").value = "VERY_LOW";
+    document.querySelector("[name='media_quality']").value = "VERY_LOW";
+    document.querySelector("[name='media_quality']").dispatchEvent(new Event('change', {bubbles: true}));
+
 
     // Click create button
     document.querySelector("button[data-testid='dyi/sections/create']").click();
