@@ -126,6 +126,10 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
     window.ReactNativeWebView.postMessage(JSON.stringify({ state: 'actionDone', action: "requestInfo" }));
   }
 
+  function simulation_login_reauth() {
+    // todo
+  }
+
   function simulation_common() {
     console.log = (msg) => {
       window.ReactNativeWebView.postMessage(JSON.stringify({ state: 'log', log: msg }));
@@ -154,8 +158,8 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
         result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
       } else if (url.includes('.facebook.com/dyi/')) {
         result += getFunctionBody(simulation_dyiPage_downloadInfo);
-      } else if (url.includes('.facebook.com/login/')) {
-
+      } else if (url.includes('.facebook.com/login/reauth.php')) {
+        result += getFunctionBody(simulation_login_reauth);
       } else if (url.includes('bigzipfiles.facebook.com')) {
 
       } else {
@@ -167,8 +171,8 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
         result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
       } else if (url.includes('.facebook.com/dyi/')) {
         result += getFunctionBody(simulation_dyiPage_requestInfo)
-      } else if (url.includes('.facebook.com/login/')) {
-        // todo
+      } else if (url.includes('.facebook.com/login/reauth.php')) {
+        result += getFunctionBody(simulation_login_reauth);
       } else {
         result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
       }
