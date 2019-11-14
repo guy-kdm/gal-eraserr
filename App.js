@@ -11,24 +11,27 @@ import { WebView } from 'react-native-webview';
 export default class App extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { injectedJavaScript: null };
-    this.currentAction = null;
+    this.state = { 
+      injectedJavaScript: null,
+      currentAction: null
+    };
   }
 
   render() {
     return (
       <>
+        <Text>Current Action: {this.state.currentAction}</Text>
         <TouchableOpacity 
           style={styles.button}
           onPress={() => this.startAction("requestInfo")}
         >
-          <Text>Create Info File</Text>
+          <Text style={styles.buttonText}>Create Info File</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.button} 
           onPress={() => this.startAction("downloadInfo")}
         >
-          <Text>Download Existing Info File</Text>
+          <Text style={styles.buttonText}>Download Existing Info File</Text>
         </TouchableOpacity>
         <WebView 
           ref={webview => this.webview = webview}
@@ -44,6 +47,10 @@ export default class App extends React.Component {
               case 'error':
                 console.error(parsed.error);
                 break;
+              case 'actionDone':
+                this.setState( {currentAction: null } );
+                console.log(`Action Done: ${parsed.action}`);
+                break;
             }          
           }}
         />
@@ -53,14 +60,14 @@ export default class App extends React.Component {
 
   onNavigationStateChange(event) {
     if (event.loading) {
-      this.setState({injectedJavaScript: getInjectedJavascriptByActionAndUrl(this.currentAction, event.url)});
+      this.setState({injectedJavaScript: getInjectedJavascriptByActionAndUrl(this.state.currentAction, event.url)});
     } else {
-      console.log(`URL: ${event.url}`);
+      console.log(`URL Loaded: ${event.url}`);
     }
   }
 
   startAction(action) {
-    this.currentAction = action;
+    this.setState( { currentAction: action } );
     this.webview.reload();
     // this.webview.postMessage(JSON.stringify({action: action}));
   }
@@ -85,6 +92,8 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
     let downloadButton = document.querySelector("button[data-testid*='download'][type='submit']");
     if (downloadButton) {
       downloadButton.click();
+
+      window.ReactNativeWebView.postMessage(JSON.stringify({ state: 'actionDone', action: "downloadInfo" }));
     } else {
       console.error("couldn't find the download button");
     }
@@ -107,13 +116,14 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
     document.querySelectorAll("input[type='date']")[0].value = new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10);
     document.querySelectorAll("input[type='date']")[1].value = new Date(Date.now()).toISOString().slice(0,10);
 
-    // // Set media quality
+    // Set media quality
     document.querySelector("[name='media_quality']").value = "VERY_LOW";
     document.querySelector("[name='media_quality']").dispatchEvent(new Event('change', {bubbles: true}));
 
-
     // Click create button
     document.querySelector("button[data-testid='dyi/sections/create']").click();
+
+    window.ReactNativeWebView.postMessage(JSON.stringify({ state: 'actionDone', action: "requestInfo" }));
   }
 
   function simulation_common() {
@@ -158,7 +168,7 @@ function getInjectedJavascriptByActionAndUrl(action, url) {
       } else if (url.includes('.facebook.com/dyi/')) {
         result += getFunctionBody(simulation_dyiPage_requestInfo)
       } else if (url.includes('.facebook.com/login/')) {
-      
+        // todo
       } else {
         result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
       }
@@ -177,4 +187,8 @@ const styles = StyleSheet.create({
     borderColor: 'black',
     margin: 4,
   },
+  buttonText: {
+    fontSize: 20,
+    // fontWeight: "bold",
+  }
 });
