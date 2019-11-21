@@ -10,6 +10,8 @@ import {
 import { WebView } from 'react-native-webview';
 
 export default class App extends React.Component {
+  actionsOrdered = ["requestInfo", "waitForInfo", "downloadInfo"];
+
   constructor(props) {
     super(props);
     this.state = { 
@@ -18,7 +20,8 @@ export default class App extends React.Component {
       
       // Can insert email & pass here for quick testing, but be careful not to commit them...
       userEmail: "",
-      userPass: ""
+      userPass: "",
+      isRunningFullCycle: false
     };
   }
 
@@ -43,18 +46,31 @@ export default class App extends React.Component {
           onChangeText={text => this.setState({ userPass: text })}
           value={this.state.userPass}
         />
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={styles.button}
           onPress={() => this.startAction("requestInfo")}
         >
-          <Text style={styles.buttonText}>Create Info File</Text>
+          <Text style={styles.buttonText}>Request Info File</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => this.startAction("waitForInfo")}
+        >
+          <Text style={styles.buttonText}>Wait for Info File</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.button} 
           onPress={() => this.startAction("downloadInfo")}
         >
-          <Text style={styles.buttonText}>Download Existing Info File</Text>
+          <Text style={styles.buttonText}>Download Available Info File</Text>
+        </TouchableOpacity> */}
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => this.startFullCycle()}
+        >
+          <Text style={styles.buttonText}>Start</Text>
         </TouchableOpacity>
+        
         <WebView           
           ref={webview => this.webview = webview}
           source={{ uri: 'https://m.facebook.com/settings/'}}
@@ -83,8 +99,7 @@ export default class App extends React.Component {
         break;
       case 'actionDone':
         if (parsed.action == this.state.currentAction) {
-          this.setState( {currentAction: null } );
-          console.log(`Action Done: ${parsed.action}`);
+          this.onActionDone(parsed);
         } else {
           console.warn(`Reported 'Action Done' but isn't current action: ${parsed.action}`);
         }
@@ -92,11 +107,49 @@ export default class App extends React.Component {
     }          
   }
 
+  startNextFullCycleAction() {
+    let currentIndex = 0;
+    if (this.state.currentAction) { 
+      currentIndex = this.actionsOrdered.indexOf(this.state.currentAction);
+      currentIndex++;
+    }
+    
+    if (currentIndex < this.actionsOrdered.length) {
+      this.startAction(this.actionsOrdered[currentIndex]);
+    } else {
+      console.log('Full cycle done');
+      this.setState({
+        currentAction: null,
+        isRunningFullCycle: false
+      });
+    }
+  }
+
+  startFullCycle() {
+    this.setState( {
+      currentAction: null, 
+      isRunningFullCycle: true
+    } );
+    this.startNextFullCycleAction();
+  }
+
+  onActionDone(data) {
+    console.log(`Action Done: ${data.action}`);
+
+    if (!this.state.isRunningFullCycle) {
+      this.setState( { currentAction: null } );
+    } else {
+      this.startNextFullCycleAction();
+    }
+  }
+
   onNavigationStateChange(event) {
     if (event.loading) {
       if (event.url.includes("bigzipfiles.facebook.com")) {
         if (this.state.currentAction == "downloadInfo") {
-          this.setState( { currentAction: null } );
+          this.onActionDone({
+            action: "downloadInfo"
+          });
         }
       }
 
@@ -164,8 +217,28 @@ const userSimulator = (function initUserSimulator() {
   
       // Click create button
       document.querySelector("button[data-testid='dyi/sections/create']").click();
-  
-      window.ReactNativeWebView.postMessage(JSON.stringify({ messageType: 'actionDone', action: "requestInfo" }));
+
+      window.ReactNativeWebView.postMessage(JSON.stringify({ 
+        messageType: 'actionDone', 
+        action: "requestInfo",
+      }));
+    }
+
+    function simulation_dyiPage_waitForPendingInfo() {
+      let isFirstDivCreationMessage = 
+        document.querySelector("[data-testid='dyi/archives'] div:first-child")
+        .innerText.includes("A copy of your information is being created.");
+
+      if (isFirstDivCreationMessage) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 10000);
+      } else {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          messageType: 'actionDone', 
+          action: "waitForInfo",
+        }));
+      }
     }
   
     function simulation_login_reauth() {
@@ -216,6 +289,15 @@ const userSimulator = (function initUserSimulator() {
           result += getFunctionBody(simulation_dyiPage_requestInfo)
         } else if (url.includes('.facebook.com/login/reauth.php')) {
           result += getFunctionBody(simulation_login_reauth).replace("{{password}}", pass);
+        } else {
+          result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
+        }
+        break;
+      case "waitForInfo":
+        if (url.includes('.facebook.com/settings/')) {
+          result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
+        } else if (url.includes('.facebook.com/dyi/')) {
+          result += getFunctionBody(simulation_dyiPage_waitForPendingInfo)
         } else {
           result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
         }
