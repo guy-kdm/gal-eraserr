@@ -206,6 +206,21 @@ const userSimulator = (function initUserSimulator() {
     }
   
     function simulation_dyiPage_requestInfo() {
+      // source: https://github.com/facebook/react/issues/11488
+      function modifyDateInput(input, newValue) {
+        let lastValue = input.value;
+        input.value = newValue;
+        let event = new Event('input', { bubbles: true });
+        // hack React15
+        event.simulated = true;
+        // hack React16
+        let tracker = input._valueTracker;
+        if (tracker) {
+          tracker.setValue(lastValue);
+        }
+        input.dispatchEvent(event);
+      }
+
       // Deselect all sections
       document.querySelector("[data-testid='dyi/sections/selectall']").click();
       // Select posts only
@@ -215,8 +230,8 @@ const userSimulator = (function initUserSimulator() {
       const DAYS_BACK = 3;
       document.querySelector("select[name='date']").value = "custom";
       document.querySelector("select[name='date']").dispatchEvent(new Event('change', {bubbles: true}));
-      document.querySelectorAll("input[type='date']")[0].value = new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10);
-      document.querySelectorAll("input[type='date']")[1].value = new Date(Date.now()).toISOString().slice(0,10);
+      modifyDateInput(document.querySelectorAll("input[type='date']")[0], new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10));
+      modifyDateInput(document.querySelectorAll("input[type='date']")[1], new Date(Date.now()).toISOString().slice(0,10));
   
       // Set media quality
       document.querySelector("[name='media_quality']").value = "VERY_LOW";
