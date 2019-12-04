@@ -78,10 +78,22 @@ export default class App extends React.Component {
           onNavigationStateChange={event => this.onNavigationStateChange(event)}
           onMessage={event => this.handleMessageFromWebView(event)}
           style={styles.webView}
+          onLoadProgress={event => this.onLoadProgress(event)}
         />
         </View>
       </>
     );
+  }
+
+  onLoadProgress(event) {
+    console.log(`onLoadProgress: ${JSON.stringify(event.nativeEvent)}`);
+    if (event.nativeEvent.progress == 1 && this.loadingUrl && this.loadingUrl.includes("://bigzipfiles.facebook.com")) {
+      if (this.state.currentAction == "downloadInfo") {
+        this.onActionDone({
+          action: "downloadInfo"
+        });
+      }
+    }
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -145,16 +157,11 @@ export default class App extends React.Component {
 
   onNavigationStateChange(event) {
     if (event.loading) {
-      if (event.url.includes("bigzipfiles.facebook.com")) {
-        if (this.state.currentAction == "downloadInfo") {
-          this.onActionDone({
-            action: "downloadInfo"
-          });
-        }
-      }
-
+      console.log(`URL Loading: ${event.url}`);
+      this.loadingUrl = event.url;
       this.setState({injectedJavaScript: userSimulator.getInjectedJavascriptByActionAndUrl(this.state.currentAction, event.url)});
     } else {
+      this.loadingUrl = null;
       console.log(`URL Loaded: ${event.url}`);
     }
   }
