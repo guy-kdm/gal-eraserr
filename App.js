@@ -21,7 +21,8 @@ export default class App extends React.Component {
       // Can insert email & pass here for quick testing, but be careful not to commit them...
       userEmail: "",
       userPass: "",
-      isRunningFullCycle: false
+      isRunningFullCycle: false,
+      dateRange: null
     };
   }
 
@@ -46,6 +47,19 @@ export default class App extends React.Component {
           onChangeText={text => this.setState({ userPass: text })}
           value={this.state.userPass}
         />
+        <TextInput
+          placeholder="Number of days back"
+          style={styles.textInput}
+          onChangeText={daysBack => this.setDateRangeByDaysBack(daysBack)}
+          keyboardType="numeric"
+        />
+        <Text>Date Range: {
+          (this.state.dateRange && this.state.dateRange.length >= 2) ?
+          this.state.dateRange
+            .map(date => date.toDateString())
+            .join(' to ') :
+          "unset"
+        }</Text>
         {/* <TouchableOpacity 
           style={styles.button}
           onPress={() => this.startAction("requestInfo")}
@@ -67,6 +81,7 @@ export default class App extends React.Component {
         <TouchableOpacity 
           style={styles.button} 
           onPress={() => this.startFullCycle()}
+          disabled={!this.state.dateRange || !this.state.userPass}
         >
           <Text style={styles.buttonText}>Start</Text>
         </TouchableOpacity>
@@ -102,6 +117,22 @@ export default class App extends React.Component {
     }
   }
 
+  setDateRangeByDaysBack(daysBack) {
+    let dateRange;
+    if (daysBack === '' || isNaN(daysBack) || daysBack < 0) {
+      dateRange = null;
+    } else {
+      dateRange = [
+        new Date(Date.now() - 864e5 * daysBack),
+        new Date(Date.now())
+      ];
+    }
+
+    this.setState({
+      dateRange: dateRange
+    })
+  }
+  
   componentDidUpdate(prevProps, prevState) {
     userSimulator.setEmailAndPass(this.state.userEmail, this.state.userPass);
   }
@@ -165,7 +196,11 @@ export default class App extends React.Component {
     if (event.loading) {
       console.log(`URL Loading: ${event.url}`);
       this.loadingUrl = event.url;
-      this.setState({injectedJavaScript: userSimulator.getInjectedJavascriptByActionAndUrl(this.state.currentAction, event.url)});
+      this.setState({
+        injectedJavaScript: userSimulator.getInjectedJavascriptByActionAndUrl(event.url, this.state.currentAction, {
+          dateRange: this.state.dateRange
+        })
+      });
     } else {
       console.log(`URL Loaded: ${event.url}`);
       this.onUrlLoadedCheckDownloadInfoDone(event.url);
@@ -189,7 +224,7 @@ const userSimulator = (function initUserSimulator() {
     return funcStr.slice(funcStr.indexOf("{") + 1, funcStr.lastIndexOf("}"));
   }
   
-  function getInjectedJavascriptByActionAndUrl(action, url) {
+  function getInjectedJavascriptByActionAndUrl(url, action, params) {
     function simulation_settingsPage_gotoDyiPage() {
       let fullAddr = document.querySelector("a[href*='.facebook.com/dyi/']").getAttribute("href");
       if (fullAddr) {
@@ -222,8 +257,8 @@ const userSimulator = (function initUserSimulator() {
       const DAYS_BACK = 30;
       document.querySelector("select[name='date']").value = "custom";
       document.querySelector("select[name='date']").dispatchEvent(new Event('change', {bubbles: true}));
-      modifyDateInput(document.querySelectorAll("input[type='date']")[0], new Date(Date.now() - 864e5 * DAYS_BACK).toISOString().slice(0,10));
-      modifyDateInput(document.querySelectorAll("input[type='date']")[1], new Date(Date.now()).toISOString().slice(0,10));
+      modifyDateInput(document.querySelectorAll("input[type='date']")[0], "{{dateRangeStart}}");
+      modifyDateInput(document.querySelectorAll("input[type='date']")[1], "{{dateRangeEnd}}");
   
       // Set media quality
       document.querySelector("[name='media_quality']").value = "VERY_LOW";
@@ -292,6 +327,8 @@ const userSimulator = (function initUserSimulator() {
       //   }
       // });
     }
+
+    const dateToStringFormat = date => date.toISOString().slice(0, 10);
   
     let result = "";
   
@@ -316,6 +353,8 @@ const userSimulator = (function initUserSimulator() {
           result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
         } else if (url.includes('.facebook.com/dyi/')) {
           result += getFunctionBody(simulation_dyiPage_requestInfo)
+            .replace("{{dateRangeStart}}", dateToStringFormat(params.dateRange[0]))
+            .replace("{{dateRangeEnd}}", dateToStringFormat(params.dateRange[1]));
         } else if (url.includes('.facebook.com/login/reauth.php')) {
           result += getFunctionBody(simulation_login_reauth).replace("{{password}}", pass);
         } else {
