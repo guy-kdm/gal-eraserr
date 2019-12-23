@@ -10,7 +10,7 @@ import {
 import { WebView } from 'react-native-webview';
 
 export default class App extends React.Component {
-  actionsOrdered = ["requestInfo", "waitForInfo", "downloadInfo"];
+  actionsOrdered = ["login", "requestInfo", "waitForInfo", "downloadInfo"];
 
   constructor(props) {
     super(props);
@@ -32,15 +32,15 @@ export default class App extends React.Component {
       <View style={styles.rootContainer}>
         <Text>Current Action: {this.state.currentAction || "none"}</Text>
         
-        {/* <TextInput
-          placeholder="email"
+        <TextInput
+          placeholder="Facebook User (mobile number or email)"
           autoCompleteType="email"
           style={styles.textInput}
           onChangeText={text => this.setState({ userEmail: text })}
           value={this.state.userEmail}
-        /> */}
+        />
         <TextInput
-          placeholder="Facebook Password (for reauth)"
+          placeholder="Facebook Password"
           autoCompleteType="password"
           secureTextEntry={true}
           style={styles.textInput}
@@ -86,9 +86,9 @@ export default class App extends React.Component {
           <Text style={styles.buttonText}>Start</Text>
         </TouchableOpacity>
         
-        <WebView           
+        <WebView
           ref={webview => this.webview = webview}
-          source={{ uri: 'https://m.facebook.com/settings/'}}
+          source={{ uri: 'https://m.facebook.com/login/?fl'}}
           injectedJavaScript={ this.state.injectedJavaScript }
           onNavigationStateChange={event => this.onNavigationStateChange(event)}
           onMessage={event => this.handleMessageFromWebView(event)}
@@ -242,7 +242,22 @@ const userSimulator = (function initUserSimulator() {
         console.error("couldn't find the download button");
       }
     }
+
+    function simulation_anyPage_checkIsLoggedIn() {
+      if (document.cookie.includes("; c_user=")) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          messageType: 'actionDone',
+          action: "login",
+        }));
+
+        return;      
+      }
+    }
       
+    function simulation_anyPage_gotoLoginPage() {
+      window.location.href = "https://m.facebook.com/login/?fl";
+    }
+
     function simulation_anyPage_gotoSettingsPage() {
       window.location.href = "https://m.facebook.com/settings/";
     }
@@ -254,7 +269,6 @@ const userSimulator = (function initUserSimulator() {
       document.querySelector("[data-testid='dyi/sections/posts']").click();
   
       // Set custom date
-      const DAYS_BACK = 30;
       document.querySelector("select[name='date']").value = "custom";
       document.querySelector("select[name='date']").dispatchEvent(new Event('change', {bubbles: true}));
       modifyDateInput(document.querySelectorAll("input[type='date']")[0], "{{dateRangeStart}}");
@@ -274,11 +288,10 @@ const userSimulator = (function initUserSimulator() {
     }
 
     function simulation_dyiPage_waitForPendingInfo() {
-      let isFirstDivCreationMessage = 
-        document.querySelector("[data-testid='dyi/archives'] div:first-child")
-        .innerText.includes("A copy of your information is being created.");
+      let isLatestRequestStillBeingCreated = 
+        document.querySelector("[data-testid='dyi/archives'] > div:first-child").children.length == 0;
 
-      if (isFirstDivCreationMessage) {
+      if (isLatestRequestStillBeingCreated) {
         setTimeout(() => {
           window.location.reload();
         }, 10000);
@@ -289,8 +302,14 @@ const userSimulator = (function initUserSimulator() {
         }));
       }
     }
+
+    function simulation_loginPage_login() {
+      document.querySelector("#login_form input[name='email']").value = "{{email}}";
+      document.querySelector("#login_form input[name='pass']").value = "{{password}}";
+      document.querySelector("#login_form button[name='login']").click();
+    }
   
-    function simulation_login_reauth() {
+    function simulation_reauthPage_login() {
       document.querySelector("form[action*='reauth'] input[name='pass']").value = "{{password}}";
       document.querySelector("form[action*='reauth'] input[type='submit'][data-testid='sec_ac_button']").click();
     }
@@ -335,13 +354,24 @@ const userSimulator = (function initUserSimulator() {
     result += getFunctionBody(simulation_common);
   
     switch (action) {
+      case "login":
+        result += getFunctionBody(simulation_anyPage_checkIsLoggedIn);
+
+        if (url.includes('.facebook.com/login/?fl')) {
+          result += getFunctionBody(simulation_loginPage_login)
+            .replace("{{email}}", email)
+            .replace("{{password}}", pass);
+        } else {
+          result += getFunctionBody(simulation_anyPage_gotoLoginPage);
+        }
+        break;
       case "downloadInfo":
         if (url.includes('.facebook.com/settings/')) {
           result += getFunctionBody(simulation_settingsPage_gotoDyiPage);
         } else if (url.includes('.facebook.com/dyi/')) {
           result += getFunctionBody(simulation_dyiPage_downloadInfo);
         } else if (url.includes('.facebook.com/login/reauth.php')) {
-          result += getFunctionBody(simulation_login_reauth).replace("{{password}}", pass);;
+          result += getFunctionBody(simulation_reauthPage_login).replace("{{password}}", pass);
         } else if (url.includes('bigzipfiles.facebook.com')) {
           
         } else {
@@ -356,7 +386,7 @@ const userSimulator = (function initUserSimulator() {
             .replace("{{dateRangeStart}}", dateToStringFormat(params.dateRange[0]))
             .replace("{{dateRangeEnd}}", dateToStringFormat(params.dateRange[1]));
         } else if (url.includes('.facebook.com/login/reauth.php')) {
-          result += getFunctionBody(simulation_login_reauth).replace("{{password}}", pass);
+          result += getFunctionBody(simulation_reauthPage_login).replace("{{password}}", pass);
         } else {
           result += getFunctionBody(simulation_anyPage_gotoSettingsPage);
         }
