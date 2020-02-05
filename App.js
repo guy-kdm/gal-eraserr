@@ -8,6 +8,9 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import {run} from './deleteBackupItems'
+
+
 
 export default class App extends React.Component {
   actionsOrdered = ["login", "requestInfo", "waitForInfo", "downloadInfo"];
@@ -26,6 +29,9 @@ export default class App extends React.Component {
     };
   }
 
+  componentDidMount(){
+    run()
+  }
   render() {
     return (
       <>
